@@ -470,13 +470,19 @@ func (e *engine) callActivity(ctx *extern.Context, args []values.BalValue) (valu
 			return values.NewErrorWithMessage("unknown activity argument: " + key), nil
 		}
 	}
+	cx := ctx.TypeCtx()
 	callArgs := make([]values.BalValue, len(sig.Params))
 	for i, p := range sig.Params {
 		v, present := named.Get(p.Name)
-		if !present {
+		switch {
+		case present:
+			callArgs[i] = v
+		case !semtypes.IsNever(p.Type) && semtypes.IsSubtype(cx, p.Type, semtypes.Typedesc):
+			// A typedesc parameter left unnamed takes the call's T, as the built-in activities expect
+			callArgs[i] = td
+		default:
 			return values.NewErrorWithMessage("missing activity argument: " + p.Name), nil
 		}
-		callArgs[i] = v
 	}
 	return runWithRetries(ctx, plan, name, func() values.BalValue {
 		return invokeActivity(ctx, fn, callArgs, td)

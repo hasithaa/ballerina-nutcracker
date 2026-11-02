@@ -2,3 +2,7 @@
 org     = "ballerina"
 name    = "workflow"
 version = "0.0.1"
+
+[[package.modules]]
+name = "workflow.activity"
+export = true
