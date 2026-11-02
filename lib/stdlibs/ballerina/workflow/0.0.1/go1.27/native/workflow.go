@@ -45,6 +45,11 @@ func initWorkflowModule(rt *runtime.Runtime) {
 	register("waitForResult", eng.waitForResult)
 	register("getStatus", eng.getStatus)
 	register("Context.$remote$callActivity", eng.callActivity)
+	register("Context.$remote$runChildWorkflow", eng.runChildWorkflow)
+	register("Context.$remote$getChildWorkflowResult", eng.getChildWorkflowResult)
+	register("Context.$remote$waitForChildWorkflow", eng.waitForChildWorkflow)
+	register("Context.$remote$callWorkflow", eng.callWorkflow)
+	register("Context.$remote$sendDataToChildWorkflow", eng.sendDataToChildWorkflow)
 	register("isReplayingNative", isReplaying)
 	register("getWorkflowIdNative", getWorkflowID)
 	register("getWorkflowTypeNative", getWorkflowType)
@@ -54,10 +59,7 @@ func initWorkflowModule(rt *runtime.Runtime) {
 	register("lastReviewDecisionNative", noop)
 	// Not implemented yet. Those whose declared return admits an error answer one; `await`
 	// returns a bare T, so it panics, and `awaitHumanTask` answers its HumanTaskFailedError.
-	for _, name := range []string{"runWithIdNative", "getPendingAgentEvents", "completeHumanTaskNative",
-		"Context.$remote$runChildWorkflow", "Context.$remote$getChildWorkflowResult",
-		"Context.$remote$waitForChildWorkflow", "Context.$remote$callWorkflow",
-		"Context.$remote$sendDataToChildWorkflow"} {
+	for _, name := range []string{"runWithIdNative", "getPendingAgentEvents", "completeHumanTaskNative"} {
 		register(name, unsupported(name))
 	}
 	register("Context.$remote$await", unsupportedPanic("Context.await"))

@@ -14,6 +14,7 @@ The Go-native version runs every instance in process with an in-memory engine: a
 - Read a result without waiting, wait for it with an optional bound, or ask the status (`getResult`, `waitForResult`, `getStatus`)
 - Call activities with named arguments (`Context.callActivity`)
 - Sleep inside a workflow, read the clock, the instance id and type (`Context.sleep`, `currentTimeMillis`, `getWorkflowId`, `getWorkflowType`)
+- Start child workflows, gather their results and send them data (`Context.runChildWorkflow`, `waitForChildWorkflow`, `getChildWorkflowResult`, `callWorkflow`, `sendDataToChildWorkflow`)
 - Typed read errors (`WorkflowInProgressError`, `InstanceNotFoundError`, `InstanceFailedError`)
 
 ## Examples
@@ -76,7 +77,7 @@ Support Levels:
 | `Context.getWorkflowId`, `Context.getWorkflowType` | Supported | |
 | `Context.await` | Not Yet Supported | Panics with an unsupported-API error; its declared return type `T` has no room for an error value |
 | `Context.awaitHumanTask`, `completeHumanTask`, `lastHumanTaskCompletion`, `lastReviewDecision` | Not Yet Supported | `awaitHumanTask` answers a `HumanTaskFailedError`; the last-completion reads answer `()` |
-| Child workflows (`runChildWorkflow`, `getChildWorkflowResult`, `waitForChildWorkflow`, `callWorkflow`, `sendDataToChildWorkflow`) | Not Yet Supported | Each answers an unsupported-API error |
+| Child workflows (`runChildWorkflow`, `getChildWorkflowResult`, `waitForChildWorkflow`, `callWorkflow`, `sendDataToChildWorkflow`) | Supported | A child is an instance of its own, started from the parent's strand and readable from outside by its id; it is not cancelled when the parent closes |
 | `runWithId` and the instance-id policies | Not Yet Supported | Answers an unsupported-API error |
 | Durable agents (`DurableAgent`, `getPendingAgentEvents`) | Not Yet Supported | The `agent` source and the `ballerina/ai` dependency are not ported |
 | Management API (`workflow.management`, `workflow.management.rest`) and `workflow.observe` | Not Yet Supported | Submodules are not ported |
@@ -87,4 +88,5 @@ Support Levels:
 
 - **Instances are not durable.** jBallerina runs every instance on a Temporal worker, replaying its history after a crash; the Go-native version keeps instances in process memory, so they end with the process and `isReplaying` is always `false`.
 - **An activity runs on the workflow's strand.** jBallerina schedules activities on worker threads with retries and timeouts; here `callActivity` is a direct call, and a panic in the activity comes back to the workflow as an error, as a failed activity does.
+- **A child outlives its parent.** jBallerina cancels in-flight children when the parent closes; the in-memory engine has no cancellation, so a child keeps running to its own end and stays readable by its id.
 - **A workflow panic fails the instance.** The panic value becomes the instance's error, so `waitForResult` answers an `InstanceFailedError` whose message is the panic's.

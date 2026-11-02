@@ -41,6 +41,7 @@ type engine struct {
 type instance struct {
 	id           string
 	workflowType string
+	parent       string
 	events       map[string]*values.Future
 	done         chan struct{}
 	result       values.BalValue
@@ -51,7 +52,13 @@ func newEngine(rt *runtime.Runtime) *engine {
 }
 
 func (e *engine) run(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
-	fn := args[0].(*values.Function)
+	return e.start(ctx, args[0].(*values.Function), args[1], "")
+}
+
+// start creates an instance of fn with the input and runs it on its own strand; parent is the
+// id of the workflow that started it, empty for a top-level instance.
+func (e *engine) start(ctx *extern.Context, fn *values.Function, input values.BalValue,
+	parent string) (values.BalValue, error) {
 	org, module, name := splitLookupKey(fn.LookupKey)
 	handle, ok := ctx.LookupFunction(org, module, name)
 	if !ok {
@@ -64,10 +71,11 @@ func (e *engine) run(ctx *extern.Context, args []values.BalValue) (values.BalVal
 	inst := &instance{
 		id:           fmt.Sprintf("%s-%d", name, e.nextID.Add(1)),
 		workflowType: name,
+		parent:       parent,
 		events:       make(map[string]*values.Future),
 		done:         make(chan struct{}),
 	}
-	callArgs, errVal := e.workflowArgs(ctx, inst, sig, args[1])
+	callArgs, errVal := e.workflowArgs(ctx, inst, sig, input)
 	if errVal != nil {
 		return errVal, nil
 	}
@@ -210,22 +218,26 @@ func (e *engine) lookup(ctx *extern.Context, id string) (*instance, values.BalVa
 }
 
 func (e *engine) sendData(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
-	inst, errVal := e.lookup(ctx, args[1].(string))
+	return e.deliver(ctx, args[1].(string), args[2].(string), args[3]), nil
+}
+
+// deliver completes the named event future of the instance with data converted to its type.
+func (e *engine) deliver(ctx *extern.Context, id, dataName string, data values.BalValue) values.BalValue {
+	inst, errVal := e.lookup(ctx, id)
 	if errVal != nil {
-		return errVal, nil
+		return errVal
 	}
-	dataName := args[2].(string)
 	future, ok := inst.events[dataName]
 	if !ok {
-		return values.NewErrorWithMessage("workflow has no data event: " + dataName), nil
+		return values.NewErrorWithMessage("workflow has no data event: " + dataName)
 	}
 	cx := ctx.TypeCtx()
-	converted, convErr := values.CloneWithType(cx, args[3], semtypes.FutureEventualType(cx, future.Type))
+	converted, convErr := values.CloneWithType(cx, data, semtypes.FutureEventualType(cx, future.Type))
 	if convErr != nil {
-		return convErr, nil
+		return convErr
 	}
 	future.Complete(converted, nil)
-	return nil, nil
+	return nil
 }
 
 func (e *engine) getStatus(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
@@ -266,6 +278,12 @@ func (e *engine) waitForResult(ctx *extern.Context, args []values.BalValue) (val
 	if boundErr != nil {
 		return boundErr, nil
 	}
+	return awaitResult(ctx, inst, args[1].(*values.TypeDesc), timeout), nil
+}
+
+// awaitResult waits up to timeout milliseconds (negative for no bound) for the instance to close
+// and answers its result; past the bound it answers WorkflowInProgressError.
+func awaitResult(ctx *extern.Context, inst *instance, td *values.TypeDesc, timeout int64) values.BalValue {
 	// Poll between yields, as runtime:sleep does: blocking on the channel would hold this
 	// strand's thread, and a strand sharing it could be the one that sends the data.
 	clock := ctx.Env.Platform.Time
@@ -273,14 +291,53 @@ func (e *engine) waitForResult(ctx *extern.Context, args []values.BalValue) (val
 	for {
 		select {
 		case <-inst.done:
-			return instanceResult(ctx, inst, args[1].(*values.TypeDesc)), nil
+			return instanceResult(ctx, inst, td)
 		default:
 		}
 		if timeout >= 0 && clock.MonotonicNow() >= deadline {
-			return moduleError(ctx, "newInProgressError", inst.id), nil
+			return moduleError(ctx, "newInProgressError", inst.id)
 		}
 		<-ctx.Yield()
 	}
+}
+
+// Child workflows: a child is an instance started from a workflow's strand with the parent
+// recorded. Nothing cancels it when the parent closes, so a child outlives its parent.
+
+func (e *engine) runChildWorkflow(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
+	return e.start(ctx, args[1].(*values.Function), args[2], parentOf(args[0]).id)
+}
+
+func (e *engine) getChildWorkflowResult(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
+	return e.getResult(ctx, args[1:])
+}
+
+func (e *engine) waitForChildWorkflow(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
+	inst, errVal := e.lookup(ctx, args[1].(string))
+	if errVal != nil {
+		return errVal, nil
+	}
+	return awaitResult(ctx, inst, args[2].(*values.TypeDesc), -1), nil
+}
+
+func (e *engine) callWorkflow(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
+	started, _ := e.start(ctx, args[1].(*values.Function), args[2], parentOf(args[0]).id)
+	id, ok := started.(string)
+	if !ok {
+		return started, nil
+	}
+	inst, _ := e.lookup(ctx, id)
+	return awaitResult(ctx, inst, args[3].(*values.TypeDesc), -1), nil
+}
+
+func (e *engine) sendDataToChildWorkflow(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
+	return e.deliver(ctx, args[1].(string), args[2].(string), args[3]), nil
+}
+
+// parentOf reads the instance behind a Context object's native handle.
+func parentOf(self values.BalValue) *instance {
+	handle, _ := self.(*values.Object).Get("nativeContext")
+	return handle.(*instance)
 }
 
 // durationMillis converts a workflow:Duration record to milliseconds; nil means no bound.
