@@ -12,7 +12,7 @@ The Go-native version runs every instance in process with an in-memory engine: a
 - Start an instance and get its id, or start it under an id of your own with a policy for a held id (`run`, `runWithId`)
 - Send data to a running instance's events record (`sendData`)
 - Read a result without waiting, wait for it with an optional bound, or ask the status (`getResult`, `waitForResult`, `getStatus`)
-- Call activities with named arguments (`Context.callActivity`)
+- Call activities with named arguments and automatic retries (`Context.callActivity`, `AutoRetry`)
 - Wait for some or all of the events record's futures with an optional bound (`Context.await`)
 - Wait for a person's decision and complete it from outside (`Context.awaitHumanTask`, `completeHumanTask`, `Context.lastHumanTaskCompletion`)
 - Sleep inside a workflow, read the clock, the instance id and type (`Context.sleep`, `currentTimeMillis`, `getWorkflowId`, `getWorkflowType`)
@@ -72,7 +72,7 @@ Support Levels:
 | `getStatus` | Supported | Answers `RUNNING`, `COMPLETED` or `FAILED`; `SUSPENDED`, `CANCELED`, `TERMINATED` and `TIMED_OUT` need a durable engine |
 | Read return types | Partially Supported | `getResult` and `waitForResult` return `T\|error`, not `T\|WorkflowInProgressError\|InstanceFailedError\|InstanceNotFoundError\|error`: the compiler rejects a dependent return whose dependent and defined parts overlap. The values are the typed errors, so `is` checks work |
 | `WorkflowInProgressError`, `InstanceNotFoundError`, `InstanceFailedError` | Supported | Built through Ballerina factories the engine calls; `InstanceFailedError` carries the workflow's error as its cause with `status = FAILED` |
-| `Context.callActivity` | Partially Supported | Every parameter must be named: a declared default is not applied, since the runtime does not expose default-value providers to externs. A surplus or missing name is an error. An activity panic comes back as an error |
+| `Context.callActivity` | Partially Supported | Every parameter must be named: a declared default is not applied, since the runtime does not expose default-value providers to externs. A surplus or missing name is an error. An activity panic comes back as an error. `retryPolicy` honours `NoRetry` and `AutoRetry` (`maxRetries`, `retryDelay`, `retryBackoff`, `maxRetryDelay`, backing off while yielding) and the retries of a `RetryBeforeReview`; a policy that would raise a review, and an `approvalPolicy` gate, answer a `ReviewFailedError`, since deciding a review needs the management API |
 | `Context.sleep` | Supported | Waits on the PAL clock while yielding, like `runtime:sleep`; `months` and `years` are refused |
 | `Context.currentTimeMillis` | Supported | `pal.Time.Now` |
 | `Context.isReplaying` | Supported | Always `false`: nothing replays in process |

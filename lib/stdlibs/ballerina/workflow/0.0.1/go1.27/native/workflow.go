@@ -92,11 +92,7 @@ func currentTimeMillis(ctx *extern.Context, _ []values.BalValue) (values.BalValu
 // sleepContext waits on the PAL clock while yielding, as runtime:sleep does, so the strands
 // sharing this thread keep running.
 func sleepContext(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
-	clock := ctx.Env.Platform.Time
-	deadline := clock.MonotonicNow() + time.Duration(args[1].(int64))*time.Millisecond
-	for clock.MonotonicNow() < deadline {
-		<-ctx.Yield()
-	}
+	sleepYielding(ctx, time.Duration(args[1].(int64))*time.Millisecond)
 	return nil, nil
 }
 

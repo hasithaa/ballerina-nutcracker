@@ -1,0 +1,6 @@
+-- stdout --
+ok after 3 in 3 attempts
+attempt 4 failed in 4 attempts
+attempt 1 failed in 1 attempts
+truetruetrue | a review of 'flaky' cannot be raised by the in-memory engine: deciding one needs the management API | retryPolicy of 'flaky' must name 'userRoles' or 'users' | 2 attempts
+-- stderr --
