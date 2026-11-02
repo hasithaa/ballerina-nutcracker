@@ -14,6 +14,7 @@ The Go-native version runs every instance in process with an in-memory engine: a
 - Read a result without waiting, wait for it with an optional bound, or ask the status (`getResult`, `waitForResult`, `getStatus`)
 - Call activities with named arguments and automatic retries (`Context.callActivity`, `AutoRetry`)
 - Wait for some or all of the events record's futures with an optional bound (`Context.await`)
+- Call a REST endpoint as a ready-made activity (`workflow.activity:callRestAPI`)
 - Wait for a person's decision and complete it from outside (`Context.awaitHumanTask`, `completeHumanTask`, `Context.lastHumanTaskCompletion`)
 - Sleep inside a workflow, read the clock, the instance id and type (`Context.sleep`, `currentTimeMillis`, `getWorkflowId`, `getWorkflowType`)
 - Start child workflows, gather their results and send them data (`Context.runChildWorkflow`, `waitForChildWorkflow`, `getChildWorkflowResult`, `callWorkflow`, `sendDataToChildWorkflow`)
@@ -83,6 +84,8 @@ Support Levels:
 | Child workflows (`runChildWorkflow`, `getChildWorkflowResult`, `waitForChildWorkflow`, `callWorkflow`, `sendDataToChildWorkflow`) | Supported | A child is an instance of its own, started from the parent's strand and readable from outside by its id; it is not cancelled when the parent closes |
 | `runWithId` and the instance-id policies | Supported | A closed holder stays in memory for as long as the process, so `REJECT_DUPLICATE` refuses for that long |
 | Durable agents (`DurableAgent`, `getPendingAgentEvents`) | Not Yet Supported | The `agent` source and the `ballerina/ai` dependency are not ported |
+| `workflow.activity`: `callRestAPI` | Supported | Dispatches to the `http:Client`'s remote method; an unnamed `t` takes the `callActivity`'s `T`. Declared with `t = anydata` rather than inferred, since a dependently typed function cannot be passed as a value yet, and without `@workflow:Activity`, since a bala submodule cannot import its root yet |
+| `workflow.activity`: `sendEmail`, `callSoapAPI` | Not Yet Supported | `ballerina/email` and `ballerina/soap` are not ported |
 | Management API (`workflow.management`, `workflow.management.rest`) and `workflow.observe` | Not Yet Supported | Submodules are not ported |
 | Durability and replay (Temporal server, `Mode` configuration) | Not Yet Supported | `mode` is a `final` `IN_MEMORY` because `configurable` is not supported (ballerina-nutcracker/ballerina#1478); a local Temporal server is ballerina-nutcracker/ballerina#1479 |
 | Deprecated APIs (`getResultWithTimeout`, `awaitForResult`, …) | Cannot Support | Removed rather than ported: `@deprecated` is not supported and the module has their replacements |

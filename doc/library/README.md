@@ -24,8 +24,8 @@ Support % is computed as `round(Supported / Total * 100)`, where *Total* is the 
 | [udp](../../lib/stdlibs/ballerina/udp/0.0.1/go1.27/README.md)                 | 16 | 2 | 2 | 80% |
 | [url](../../lib/stdlibs/ballerina/url/0.0.1/go1.27/README.md)                 | 3 | 0 | 1 | 75% |
 | [uuid](../../lib/stdlibs/ballerina/uuid/0.0.1/go1.27/README.md)               | 20 | 0 | 0 | 100% |
-| [workflow](../../lib/stdlibs/ballerina/workflow/0.0.1/go1.27/README.md)       | 13 | 4 | 4 | 59% |
-| **Total**                                         | **257** | **32** | **72** | **71%** |
+| [workflow](../../lib/stdlibs/ballerina/workflow/0.0.1/go1.27/README.md)       | 14 | 4 | 5 | 58% |
+| **Total**                                         | **258** | **32** | **73** | **71%** |
 
 ## Notable Behavioural Changes
 
