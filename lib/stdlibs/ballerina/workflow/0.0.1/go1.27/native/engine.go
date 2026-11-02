@@ -52,13 +52,36 @@ func newEngine(rt *runtime.Runtime) *engine {
 }
 
 func (e *engine) run(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
-	return e.start(ctx, args[0].(*values.Function), args[1], "")
+	return e.start(ctx, args[0].(*values.Function), args[1], "", "", nil)
 }
 
-// start creates an instance of fn with the input and runs it on its own strand; parent is the
-// id of the workflow that started it, empty for a top-level instance.
+// runWithId starts under a caller-chosen id. The policies decide what happens when the id is held:
+// a running holder is joined or refused, a closed one is replaced or refused.
+func (e *engine) runWithId(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
+	id := args[1].(string)
+	ifRunning, ifClosed := args[3].(string), args[4].(string)
+	admit := func(holder *instance) values.BalValue {
+		status := holder.status()
+		switch {
+		case status == "RUNNING" && ifRunning == "USE_EXISTING":
+			return holder.id
+		case status == "RUNNING":
+		case ifClosed == "ALLOW_DUPLICATE":
+			return nil
+		case ifClosed == "ALLOW_DUPLICATE_FAILED_ONLY" && status == "FAILED":
+			return nil
+		}
+		return moduleError(ctx, "newInstanceAlreadyExistsError", id, status)
+	}
+	return e.start(ctx, args[0].(*values.Function), args[2], "", id, admit)
+}
+
+// start creates an instance of fn with the input and runs it on its own strand. parent is the
+// id of the workflow that started it, empty for a top-level instance; id is the caller's choice
+// or empty for a generated one; admit, when given, answers for an id already held, with a
+// result to return instead of starting, or nil to replace the holder.
 func (e *engine) start(ctx *extern.Context, fn *values.Function, input values.BalValue,
-	parent string) (values.BalValue, error) {
+	parent, id string, admit func(holder *instance) values.BalValue) (values.BalValue, error) {
 	org, module, name := splitLookupKey(fn.LookupKey)
 	handle, ok := ctx.LookupFunction(org, module, name)
 	if !ok {
@@ -68,8 +91,11 @@ func (e *engine) start(ctx *extern.Context, fn *values.Function, input values.Ba
 	if !ok {
 		return values.NewErrorWithMessage("workflow function has no signature: " + fn.LookupKey), nil
 	}
+	if id == "" {
+		id = fmt.Sprintf("%s-%d", name, e.nextID.Add(1))
+	}
 	inst := &instance{
-		id:           fmt.Sprintf("%s-%d", name, e.nextID.Add(1)),
+		id:           id,
 		workflowType: name,
 		parent:       parent,
 		events:       make(map[string]*values.Future),
@@ -80,6 +106,12 @@ func (e *engine) start(ctx *extern.Context, fn *values.Function, input values.Ba
 		return errVal, nil
 	}
 	e.mu.Lock()
+	if holder, held := e.instances[inst.id]; held && admit != nil {
+		if answer := admit(holder); answer != nil {
+			e.mu.Unlock()
+			return answer, nil
+		}
+	}
 	e.instances[inst.id] = inst
 	e.mu.Unlock()
 	go func() {
@@ -245,14 +277,18 @@ func (e *engine) getStatus(ctx *extern.Context, args []values.BalValue) (values.
 	if errVal != nil {
 		return errVal, nil
 	}
+	return inst.status(), nil
+}
+
+func (inst *instance) status() string {
 	select {
 	case <-inst.done:
 		if _, failed := inst.result.(*values.Error); failed {
-			return "FAILED", nil
+			return "FAILED"
 		}
-		return "COMPLETED", nil
+		return "COMPLETED"
 	default:
-		return "RUNNING", nil
+		return "RUNNING"
 	}
 }
 
@@ -305,7 +341,7 @@ func awaitResult(ctx *extern.Context, inst *instance, td *values.TypeDesc, timeo
 // recorded. Nothing cancels it when the parent closes, so a child outlives its parent.
 
 func (e *engine) runChildWorkflow(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
-	return e.start(ctx, args[1].(*values.Function), args[2], parentOf(args[0]).id)
+	return e.start(ctx, args[1].(*values.Function), args[2], parentOf(args[0]).id, "", nil)
 }
 
 func (e *engine) getChildWorkflowResult(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
@@ -321,7 +357,7 @@ func (e *engine) waitForChildWorkflow(ctx *extern.Context, args []values.BalValu
 }
 
 func (e *engine) callWorkflow(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
-	started, _ := e.start(ctx, args[1].(*values.Function), args[2], parentOf(args[0]).id)
+	started, _ := e.start(ctx, args[1].(*values.Function), args[2], parentOf(args[0]).id, "", nil)
 	id, ok := started.(string)
 	if !ok {
 		return started, nil

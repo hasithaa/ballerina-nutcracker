@@ -1,0 +1,16 @@
+-- stdout --
+order-1
+refused: An instance with id 'order-1' already exists (status: RUNNING)
+order-1
+order-1: first approved by ann
+refused: An instance with id 'order-1' already exists (status: COMPLETED)
+refused: An instance with id 'order-1' already exists (status: COMPLETED)
+order-1
+RUNNING
+order-1: third approved by bob
+job-1
+error: job-1 failed on x
+job-1
+error: job-1 failed on y
+true
+-- stderr --

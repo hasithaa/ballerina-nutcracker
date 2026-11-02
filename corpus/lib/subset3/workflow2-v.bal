@@ -66,6 +66,7 @@ public function main() returns error? {
     io:println(workflow:getStatus("no-such-id") is workflow:InstanceNotFoundError); // @output true
     io:println(workflow:sendData(explode, "no-such-id", "x", 1) is workflow:InstanceNotFoundError); // @output true
 
-    string|error withId = workflow:runWithId(explode, "chosen", 2);
-    io:println(withId is error); // @output true
+    io:println(check workflow:runWithId(explode, "chosen", 2)); // @output chosen
+    int|error chosen = workflow:waitForResult("chosen");
+    io:println(chosen is workflow:InstanceFailedError); // @output true
 }
