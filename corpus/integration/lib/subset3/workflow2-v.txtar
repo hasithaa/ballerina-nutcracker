@@ -10,5 +10,6 @@ unknown activity argument: divisor
 true
 true
 true
+chosen
 true
 -- stderr --

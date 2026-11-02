@@ -40,6 +40,7 @@ func initWorkflowModule(rt *runtime.Runtime) {
 	register("stopWorkflowRuntime", noop)
 	register("initProgramNative", initProgram)
 	register("runNative", eng.run)
+	register("runWithIdNative", eng.runWithId)
 	register("sendDataNative", eng.sendData)
 	register("getResult", eng.getResult)
 	register("waitForResult", eng.waitForResult)
@@ -59,7 +60,7 @@ func initWorkflowModule(rt *runtime.Runtime) {
 	register("lastReviewDecisionNative", noop)
 	// Not implemented yet. Those whose declared return admits an error answer one; `await`
 	// returns a bare T, so it panics, and `awaitHumanTask` answers its HumanTaskFailedError.
-	for _, name := range []string{"runWithIdNative", "getPendingAgentEvents", "completeHumanTaskNative"} {
+	for _, name := range []string{"getPendingAgentEvents", "completeHumanTaskNative"} {
 		register(name, unsupported(name))
 	}
 	register("Context.$remote$await", unsupportedPanic("Context.await"))

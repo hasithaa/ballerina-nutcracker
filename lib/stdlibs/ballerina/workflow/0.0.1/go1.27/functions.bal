@@ -143,3 +143,7 @@ isolated function newInstanceFailedError(string instanceId, error cause) returns
 
 isolated function newHumanTaskFailedError(string message) returns HumanTaskFailedError =>
     error HumanTaskFailedError(message);
+
+isolated function newInstanceAlreadyExistsError(string instanceId, string status) returns InstanceAlreadyExistsError
+    => error InstanceAlreadyExistsError("An instance with id '" + instanceId + "' already exists (status: " + status + ")",
+            instanceId = instanceId, status = status);

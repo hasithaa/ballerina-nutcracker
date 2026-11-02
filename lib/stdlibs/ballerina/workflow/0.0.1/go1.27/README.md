@@ -9,13 +9,13 @@ The Go-native version runs every instance in process with an in-memory engine: a
 ## Key Functionalities
 
 - Declare workflows and activities (`@Workflow`, `@Activity`)
-- Start an instance and get its id (`run`)
+- Start an instance and get its id, or start it under an id of your own with a policy for a held id (`run`, `runWithId`)
 - Send data to a running instance's events record (`sendData`)
 - Read a result without waiting, wait for it with an optional bound, or ask the status (`getResult`, `waitForResult`, `getStatus`)
 - Call activities with named arguments (`Context.callActivity`)
 - Sleep inside a workflow, read the clock, the instance id and type (`Context.sleep`, `currentTimeMillis`, `getWorkflowId`, `getWorkflowType`)
 - Start child workflows, gather their results and send them data (`Context.runChildWorkflow`, `waitForChildWorkflow`, `getChildWorkflowResult`, `callWorkflow`, `sendDataToChildWorkflow`)
-- Typed read errors (`WorkflowInProgressError`, `InstanceNotFoundError`, `InstanceFailedError`)
+- Typed read errors (`WorkflowInProgressError`, `InstanceNotFoundError`, `InstanceFailedError`, `InstanceAlreadyExistsError`)
 
 ## Examples
 
@@ -78,7 +78,7 @@ Support Levels:
 | `Context.await` | Not Yet Supported | Panics with an unsupported-API error; its declared return type `T` has no room for an error value |
 | `Context.awaitHumanTask`, `completeHumanTask`, `lastHumanTaskCompletion`, `lastReviewDecision` | Not Yet Supported | `awaitHumanTask` answers a `HumanTaskFailedError`; the last-completion reads answer `()` |
 | Child workflows (`runChildWorkflow`, `getChildWorkflowResult`, `waitForChildWorkflow`, `callWorkflow`, `sendDataToChildWorkflow`) | Supported | A child is an instance of its own, started from the parent's strand and readable from outside by its id; it is not cancelled when the parent closes |
-| `runWithId` and the instance-id policies | Not Yet Supported | Answers an unsupported-API error |
+| `runWithId` and the instance-id policies | Supported | A closed holder stays in memory for as long as the process, so `REJECT_DUPLICATE` refuses for that long |
 | Durable agents (`DurableAgent`, `getPendingAgentEvents`) | Not Yet Supported | The `agent` source and the `ballerina/ai` dependency are not ported |
 | Management API (`workflow.management`, `workflow.management.rest`) and `workflow.observe` | Not Yet Supported | Submodules are not ported |
 | Durability and replay (Temporal server, `Mode` configuration) | Not Yet Supported | `mode` is a `final` `IN_MEMORY` because `configurable` is not supported (ballerina-nutcracker/ballerina#1478); a local Temporal server is ballerina-nutcracker/ballerina#1479 |
