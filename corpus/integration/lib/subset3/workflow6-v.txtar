@@ -1,0 +1,6 @@
+-- stdout --
+g: x/7
+f: ["y",null]
+b: Timeout waiting for futures: only 0 of 2 completed within the specified duration | Invalid minCount=2 for 1 futures: minCount must be between 1 and 1
+n: await result has 2 value(s) but the expected tuple type has only 1 member(s)
+-- stderr --

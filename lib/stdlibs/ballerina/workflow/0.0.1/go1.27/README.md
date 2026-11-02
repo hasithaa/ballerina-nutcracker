@@ -13,6 +13,7 @@ The Go-native version runs every instance in process with an in-memory engine: a
 - Send data to a running instance's events record (`sendData`)
 - Read a result without waiting, wait for it with an optional bound, or ask the status (`getResult`, `waitForResult`, `getStatus`)
 - Call activities with named arguments (`Context.callActivity`)
+- Wait for some or all of the events record's futures with an optional bound (`Context.await`)
 - Sleep inside a workflow, read the clock, the instance id and type (`Context.sleep`, `currentTimeMillis`, `getWorkflowId`, `getWorkflowType`)
 - Start child workflows, gather their results and send them data (`Context.runChildWorkflow`, `waitForChildWorkflow`, `getChildWorkflowResult`, `callWorkflow`, `sendDataToChildWorkflow`)
 - Typed read errors (`WorkflowInProgressError`, `InstanceNotFoundError`, `InstanceFailedError`, `InstanceAlreadyExistsError`)
@@ -75,7 +76,7 @@ Support Levels:
 | `Context.currentTimeMillis` | Supported | `pal.Time.Now` |
 | `Context.isReplaying` | Supported | Always `false`: nothing replays in process |
 | `Context.getWorkflowId`, `Context.getWorkflowType` | Supported | |
-| `Context.await` | Not Yet Supported | Panics with an unsupported-API error; its declared return type `T` has no room for an error value |
+| `Context.await` | Supported | A read claims the future, as a `wait` does, so a later `wait` on a future that `await` answered reports a double wait |
 | `Context.awaitHumanTask`, `completeHumanTask`, `lastHumanTaskCompletion`, `lastReviewDecision` | Not Yet Supported | `awaitHumanTask` answers a `HumanTaskFailedError`; the last-completion reads answer `()` |
 | Child workflows (`runChildWorkflow`, `getChildWorkflowResult`, `waitForChildWorkflow`, `callWorkflow`, `sendDataToChildWorkflow`) | Supported | A child is an instance of its own, started from the parent's strand and readable from outside by its id; it is not cancelled when the parent closes |
 | `runWithId` and the instance-id policies | Supported | A closed holder stays in memory for as long as the process, so `REJECT_DUPLICATE` refuses for that long |

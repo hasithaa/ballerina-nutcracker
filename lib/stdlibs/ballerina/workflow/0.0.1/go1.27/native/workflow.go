@@ -46,6 +46,7 @@ func initWorkflowModule(rt *runtime.Runtime) {
 	register("waitForResult", eng.waitForResult)
 	register("getStatus", eng.getStatus)
 	register("Context.$remote$callActivity", eng.callActivity)
+	register("Context.$remote$await", eng.await)
 	register("Context.$remote$runChildWorkflow", eng.runChildWorkflow)
 	register("Context.$remote$getChildWorkflowResult", eng.getChildWorkflowResult)
 	register("Context.$remote$waitForChildWorkflow", eng.waitForChildWorkflow)
@@ -58,12 +59,11 @@ func initWorkflowModule(rt *runtime.Runtime) {
 	register("sleepContextNative", sleepContext)
 	register("lastHumanTaskCompletionNative", noop)
 	register("lastReviewDecisionNative", noop)
-	// Not implemented yet. Those whose declared return admits an error answer one; `await`
-	// returns a bare T, so it panics, and `awaitHumanTask` answers its HumanTaskFailedError.
+	// Not implemented yet: those whose declared return admits an error answer one, and
+	// `awaitHumanTask` answers its HumanTaskFailedError.
 	for _, name := range []string{"getPendingAgentEvents", "completeHumanTaskNative"} {
 		register(name, unsupported(name))
 	}
-	register("Context.$remote$await", unsupportedPanic("Context.await"))
 	register("Context.$remote$awaitHumanTask", unsupportedHumanTask)
 }
 
@@ -110,13 +110,6 @@ func unsupportedMessage(name string) string {
 func unsupported(name string) extern.NativeFunc {
 	return func(_ *extern.Context, _ []values.BalValue) (values.BalValue, error) {
 		return values.NewErrorWithMessage(unsupportedMessage(name)), nil
-	}
-}
-
-// unsupportedPanic is for an API whose declared return type has no room for an error.
-func unsupportedPanic(name string) extern.NativeFunc {
-	return func(_ *extern.Context, _ []values.BalValue) (values.BalValue, error) {
-		panic(values.NewErrorWithMessage(unsupportedMessage(name)))
 	}
 }
 
