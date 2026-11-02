@@ -32,10 +32,12 @@ import (
 // engine runs workflow instances in process, without durability: a workflow is a strand,
 // an activity is a direct call, and data events complete the futures of the events record.
 type engine struct {
-	rt        *runtime.Runtime
-	mu        sync.Mutex
-	instances map[string]*instance
-	nextID    atomic.Uint64
+	rt            *runtime.Runtime
+	mu            sync.Mutex
+	instances     map[string]*instance
+	nextID        atomic.Uint64
+	anydataListTy semtypes.SemType
+	anydataListAt *semtypes.ListAtomicType
 }
 
 type instance struct {
@@ -48,7 +50,12 @@ type instance struct {
 }
 
 func newEngine(rt *runtime.Runtime) *engine {
-	return &engine{rt: rt, instances: make(map[string]*instance)}
+	env := rt.GetTypeEnv()
+	anydata := semtypes.CreateAnydata(semtypes.ContextFrom(env))
+	listDef := semtypes.NewListDefinition()
+	listTy := listDef.Define(env, nil, semtypes.ListRest(anydata))
+	return &engine{rt: rt, instances: make(map[string]*instance),
+		anydataListTy: listTy, anydataListAt: semtypes.ToListAtomicType(env, listTy)}
 }
 
 func (e *engine) run(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
