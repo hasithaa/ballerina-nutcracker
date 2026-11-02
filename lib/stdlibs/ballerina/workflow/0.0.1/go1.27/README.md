@@ -14,6 +14,7 @@ The Go-native version runs every instance in process with an in-memory engine: a
 - Read a result without waiting, wait for it with an optional bound, or ask the status (`getResult`, `waitForResult`, `getStatus`)
 - Call activities with named arguments (`Context.callActivity`)
 - Wait for some or all of the events record's futures with an optional bound (`Context.await`)
+- Wait for a person's decision and complete it from outside (`Context.awaitHumanTask`, `completeHumanTask`, `Context.lastHumanTaskCompletion`)
 - Sleep inside a workflow, read the clock, the instance id and type (`Context.sleep`, `currentTimeMillis`, `getWorkflowId`, `getWorkflowType`)
 - Start child workflows, gather their results and send them data (`Context.runChildWorkflow`, `waitForChildWorkflow`, `getChildWorkflowResult`, `callWorkflow`, `sendDataToChildWorkflow`)
 - Typed read errors (`WorkflowInProgressError`, `InstanceNotFoundError`, `InstanceFailedError`, `InstanceAlreadyExistsError`)
@@ -77,7 +78,8 @@ Support Levels:
 | `Context.isReplaying` | Supported | Always `false`: nothing replays in process |
 | `Context.getWorkflowId`, `Context.getWorkflowType` | Supported | |
 | `Context.await` | Supported | A read claims the future, as a `wait` does, so a later `wait` on a future that `await` answered reports a double wait |
-| `Context.awaitHumanTask`, `completeHumanTask`, `lastHumanTaskCompletion`, `lastReviewDecision` | Not Yet Supported | `awaitHumanTask` answers a `HumanTaskFailedError`; the last-completion reads answer `()` |
+| `Context.awaitHumanTask`, `completeHumanTask`, `lastHumanTaskCompletion` | Partially Supported | A task is held in memory under the id `humantask-<n>` and completed with `completeHumanTask`, which applies `userRoles`, `users`, `excludedUsers` and `excludedRoles` and the result type the workflow expects. No rejection, deadline move or reassignment: those are management operations. `administratorRoles`/`administratorUsers`, `title` and `description` are accepted and unused. A task is not listed anywhere: the management API is not ported |
+| `Context.lastReviewDecision` | Not Yet Supported | Answers `()`: reviews come with the activity approval and retry policies |
 | Child workflows (`runChildWorkflow`, `getChildWorkflowResult`, `waitForChildWorkflow`, `callWorkflow`, `sendDataToChildWorkflow`) | Supported | A child is an instance of its own, started from the parent's strand and readable from outside by its id; it is not cancelled when the parent closes |
 | `runWithId` and the instance-id policies | Supported | A closed holder stays in memory for as long as the process, so `REJECT_DUPLICATE` refuses for that long |
 | Durable agents (`DurableAgent`, `getPendingAgentEvents`) | Not Yet Supported | The `agent` source and the `ballerina/ai` dependency are not ported |
@@ -90,4 +92,5 @@ Support Levels:
 - **Instances are not durable.** jBallerina runs every instance on a Temporal worker, replaying its history after a crash; the Go-native version keeps instances in process memory, so they end with the process and `isReplaying` is always `false`.
 - **An activity runs on the workflow's strand.** jBallerina schedules activities on worker threads with retries and timeouts; here `callActivity` is a direct call, and a panic in the activity comes back to the workflow as an error, as a failed activity does.
 - **A child outlives its parent.** jBallerina cancels in-flight children when the parent closes; the in-memory engine has no cancellation, so a child keeps running to its own end and stays readable by its id.
+- **A human task is found by its id only.** jBallerina lists pending tasks through the management API and a person answers one from an inbox; here the id is `humantask-<n>` in creation order and nothing lists the tasks, so the program completing a task must know its id.
 - **A workflow panic fails the instance.** The panic value becomes the instance's error, so `waitForResult` answers an `InstanceFailedError` whose message is the panic's.

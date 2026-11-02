@@ -147,3 +147,11 @@ isolated function newHumanTaskFailedError(string message) returns HumanTaskFaile
 isolated function newInstanceAlreadyExistsError(string instanceId, string status) returns InstanceAlreadyExistsError
     => error InstanceAlreadyExistsError("An instance with id '" + instanceId + "' already exists (status: " + status + ")",
             instanceId = instanceId, status = status);
+
+isolated function newHumanTaskTimeoutError(string taskName, string taskWorkflowId, string timedOutAfter,
+        string timedOutAt) returns HumanTaskTimeoutError
+    => error HumanTaskTimeoutError("Human task '" + taskName + "' timed out after " + timedOutAfter,
+            taskName = taskName, taskWorkflowId = taskWorkflowId, timedOutAfter = timedOutAfter, timedOutAt = timedOutAt);
+
+isolated function newHumanTaskCompletion(string taskId, string taskName, string? completedBy, string? completedAt)
+        returns HumanTaskCompletion => {taskId, taskName, completedBy, completedAt};

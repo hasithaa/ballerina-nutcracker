@@ -57,14 +57,12 @@ func initWorkflowModule(rt *runtime.Runtime) {
 	register("getWorkflowTypeNative", getWorkflowType)
 	register("currentTimeMillisContextNative", currentTimeMillis)
 	register("sleepContextNative", sleepContext)
-	register("lastHumanTaskCompletionNative", noop)
+	register("lastHumanTaskCompletionNative", lastHumanTaskCompletion)
+	register("completeHumanTaskNative", eng.completeHumanTask)
+	register("Context.$remote$awaitHumanTask", eng.awaitHumanTask)
 	register("lastReviewDecisionNative", noop)
-	// Not implemented yet: those whose declared return admits an error answer one, and
-	// `awaitHumanTask` answers its HumanTaskFailedError.
-	for _, name := range []string{"getPendingAgentEvents", "completeHumanTaskNative"} {
-		register(name, unsupported(name))
-	}
-	register("Context.$remote$awaitHumanTask", unsupportedHumanTask)
+	// Not implemented yet: the declared return admits an error, so one is answered
+	register("getPendingAgentEvents", unsupported("getPendingAgentEvents"))
 }
 
 func noop(_ *extern.Context, _ []values.BalValue) (values.BalValue, error) {
@@ -111,10 +109,6 @@ func unsupported(name string) extern.NativeFunc {
 	return func(_ *extern.Context, _ []values.BalValue) (values.BalValue, error) {
 		return values.NewErrorWithMessage(unsupportedMessage(name)), nil
 	}
-}
-
-func unsupportedHumanTask(ctx *extern.Context, _ []values.BalValue) (values.BalValue, error) {
-	return moduleError(ctx, "newHumanTaskFailedError", unsupportedMessage("Context.awaitHumanTask")), nil
 }
 
 // splitLookupKey splits a function lookup key of the form "org/module:name".

@@ -36,8 +36,12 @@ type engine struct {
 	mu            sync.Mutex
 	instances     map[string]*instance
 	nextID        atomic.Uint64
+	tasks         map[string]*humanTask
+	nextTaskID    atomic.Uint64
 	anydataListTy semtypes.SemType
 	anydataListAt *semtypes.ListAtomicType
+	anydataMapTy  semtypes.SemType
+	anydataMapAt  *semtypes.MappingAtomicType
 }
 
 type instance struct {
@@ -47,6 +51,7 @@ type instance struct {
 	events       map[string]*values.Future
 	done         chan struct{}
 	result       values.BalValue
+	completions  []*humanTask
 }
 
 func newEngine(rt *runtime.Runtime) *engine {
@@ -54,8 +59,11 @@ func newEngine(rt *runtime.Runtime) *engine {
 	anydata := semtypes.CreateAnydata(semtypes.ContextFrom(env))
 	listDef := semtypes.NewListDefinition()
 	listTy := listDef.Define(env, nil, semtypes.ListRest(anydata))
-	return &engine{rt: rt, instances: make(map[string]*instance),
-		anydataListTy: listTy, anydataListAt: semtypes.ToListAtomicType(env, listTy)}
+	mapDef := semtypes.NewMappingDefinition()
+	mapTy := mapDef.Define(env, nil, anydata)
+	return &engine{rt: rt, instances: make(map[string]*instance), tasks: make(map[string]*humanTask),
+		anydataListTy: listTy, anydataListAt: semtypes.ToListAtomicType(env, listTy),
+		anydataMapTy: mapTy, anydataMapAt: semtypes.ToMappingAtomicType(semtypes.ContextFrom(env), mapTy)}
 }
 
 func (e *engine) run(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
