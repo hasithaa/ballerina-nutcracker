@@ -1,0 +1,11 @@
+-- stdout --
+Unauthorized: caller does not have a required role to complete task 'humantask-1'. Required one of: [MANAGER]
+Unauthorized: caller is excluded from task 'humantask-1'
+Human task 'humantask-1' result does not match the expected
+ok
+req-1 approved (ok) by ann, no other task
+Human task 'humantask-1' is not running
+t: Human task 'approve' timed out after PT0.01S
+n: Human task 'approve' must name 'userRoles' or 'users'
+Human task 'no-such-task' not found
+-- stderr --
