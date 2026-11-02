@@ -155,3 +155,5 @@ isolated function newHumanTaskTimeoutError(string taskName, string taskWorkflowI
 
 isolated function newHumanTaskCompletion(string taskId, string taskName, string? completedBy, string? completedAt)
         returns HumanTaskCompletion => {taskId, taskName, completedBy, completedAt};
+
+isolated function newReviewFailedError(string message) returns ReviewFailedError => error ReviewFailedError(message);

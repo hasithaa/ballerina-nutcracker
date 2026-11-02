@@ -438,12 +438,21 @@ func convertResult(ctx *extern.Context, result values.BalValue, td *values.TypeD
 	return converted
 }
 
-// callActivity runs the activity on the workflow's strand, binding named args to parameters.
-func (e *engine) callActivity(ctx *extern.Context, args []values.BalValue) (result values.BalValue, err error) {
+// callActivity runs the activity on the workflow's strand, binding named args to parameters,
+// under the retry policy of its options.
+func (e *engine) callActivity(ctx *extern.Context, args []values.BalValue) (values.BalValue, error) {
 	fn := args[1].(*values.Function)
 	named := args[2].(*values.Map)
 	td := args[3].(*values.TypeDesc)
+	options := args[5].(*values.Map)
 	org, module, name := splitLookupKey(fn.LookupKey)
+	plan, policyErr := readRetryPolicy(ctx, field(options, "retryPolicy"), name)
+	if policyErr != nil {
+		return policyErr, nil
+	}
+	if gateErr := readApprovalPolicy(ctx, field(options, "approvalPolicy"), name); gateErr != nil {
+		return gateErr, nil
+	}
 	handle, ok := ctx.LookupFunction(org, module, name)
 	if !ok {
 		return values.NewErrorWithMessage("activity function not found: " + fn.LookupKey), nil
@@ -469,15 +478,22 @@ func (e *engine) callActivity(ctx *extern.Context, args []values.BalValue) (resu
 		}
 		callArgs[i] = v
 	}
-	// An activity's panic comes back to the workflow as an error, as a failed activity does
+	return runWithRetries(ctx, plan, name, func() values.BalValue {
+		return invokeActivity(ctx, fn, callArgs, td)
+	}), nil
+}
+
+// invokeActivity is one attempt: a panic comes back as an error, as a failed activity does.
+func invokeActivity(ctx *extern.Context, fn *values.Function, callArgs []values.BalValue,
+	td *values.TypeDesc) (result values.BalValue) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			result, err = panicAsError(rec), nil
+			result = panicAsError(rec)
 		}
 	}()
 	callResult, callErr := ctx.InvokeFunctionValue(fn, callArgs)
 	if callErr != nil {
-		return values.NewErrorWithMessage(callErr.Error()), nil
+		return values.NewErrorWithMessage(callErr.Error())
 	}
-	return convertResult(ctx, callResult, td), nil
+	return convertResult(ctx, callResult, td)
 }
